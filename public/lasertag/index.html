@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#03060a" />
+<title>AR Laser Tag</title>
+<link rel="stylesheet" href="/lasertag/styles.css" />
+</head>
+<body>
+
+<!-- ===================== LOBBY ===================== -->
+<section id="screen-lobby" class="screen active">
+  <div class="panel">
+    <h1 class="title">AR LASER TAG</h1>
+    <p class="subtitle">Ultrasonic hit-detection · MediaPipe AI · No GPS needed</p>
+
+    <label class="field">
+      <span>Your Name</span>
+      <input id="input-name" type="text" maxlength="16" placeholder="e.g. Ghost" autocomplete="off" />
+    </label>
+
+    <div class="tabs">
+      <button id="tab-create" class="tab active" type="button">Create Room</button>
+      <button id="tab-join" class="tab" type="button">Join Room</button>
+    </div>
+
+    <div id="pane-create" class="pane">
+      <p class="hint">Host a new match and share the 4-digit code with your squad.</p>
+      <button id="btn-create" class="btn btn-primary" type="button">CREATE ROOM</button>
+    </div>
+
+    <div id="pane-join" class="pane hidden">
+      <label class="field">
+        <span>Room Code</span>
+        <input id="input-code" type="tel" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off" />
+      </label>
+      <button id="btn-join" class="btn btn-primary" type="button">JOIN ROOM</button>
+    </div>
+
+    <p id="lobby-error" class="error hidden"></p>
+
+    <button id="btn-open-leaderboard" class="btn btn-ghost" type="button">🏆 All-Time Leaderboard</button>
+  </div>
+</section>
+
+<!-- ===================== ROOM / WAITING LOBBY ===================== -->
+<section id="screen-waiting" class="screen">
+  <div class="panel">
+    <p class="hint">ROOM CODE</p>
+    <h1 id="waiting-code" class="room-code">----</h1>
+    <p class="hint">Share this code with nearby players</p>
+
+    <ul id="waiting-players" class="player-list"></ul>
+
+    <button id="btn-start-match" class="btn btn-primary hidden" type="button">START MATCH</button>
+    <p id="waiting-status" class="hint">Waiting for host to start the match…</p>
+
+    <button id="btn-leave-lobby" class="btn btn-ghost" type="button">Leave Room</button>
+  </div>
+</section>
+
+<!-- ===================== PERMISSIONS GATE ===================== -->
+<section id="screen-permissions" class="screen">
+  <div class="panel">
+    <h1 class="title">GEAR UP</h1>
+    <p class="hint">Match starting! This game needs your camera, microphone and
+      compass to detect hits. Tap below and allow all prompts.</p>
+    <button id="btn-enable-ar" class="btn btn-primary" type="button">ENABLE CAMERA & SENSORS</button>
+    <p id="permission-status" class="hint"></p>
+  </div>
+</section>
+
+<!-- ===================== GAME (AR HUD) ===================== -->
+<section id="screen-game" class="screen">
+  <video id="camera-feed" autoplay playsinline muted></video>
+  <canvas id="capture-canvas" class="hidden"></canvas>
+
+  <div id="damage-flash" class="damage-flash"></div>
+
+  <div class="hud">
+    <!-- top-left: HP / Armor -->
+    <div class="stat-block top-left">
+      <div class="bar-row">
+        <span class="bar-label">HP</span>
+        <div class="bar hp-bar"><div id="hp-fill" class="bar-fill hp-fill"></div></div>
+        <span id="hp-value" class="bar-value">100</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">ARM</span>
+        <div class="bar armor-bar"><div id="armor-fill" class="bar-fill armor-fill"></div></div>
+        <span id="armor-value" class="bar-value">50</span>
+      </div>
+    </div>
+
+    <!-- top-right: exit + alive count -->
+    <button id="btn-exit" class="icon-btn top-right" type="button">✕</button>
+    <div id="alive-counter" class="alive-counter">👥 --</div>
+
+    <!-- kill feed -->
+    <div id="kill-feed" class="kill-feed"></div>
+
+    <!-- status banner -->
+    <div id="status-banner" class="status-banner hidden"></div>
+
+    <!-- center crosshair -->
+    <div id="crosshair" class="crosshair">
+      <div class="crosshair-line horizontal"></div>
+      <div class="crosshair-line vertical"></div>
+      <div class="crosshair-dot"></div>
+    </div>
+    <div id="hit-marker" class="hit-marker hidden">✕</div>
+
+    <!-- bottom-left: kit -->
+    <button id="btn-kit" class="round-btn kit-btn" type="button">
+      <svg id="kit-ring" class="progress-ring" viewBox="0 0 64 64">
+        <circle class="progress-ring-bg" cx="32" cy="32" r="28"></circle>
+        <circle id="kit-ring-fill" class="progress-ring-fill" cx="32" cy="32" r="28"></circle>
+      </svg>
+      <span class="round-btn-icon">🩹</span>
+    </button>
+
+    <!-- bottom-right: shoot -->
+    <div class="shoot-cluster">
+      <div class="ammo-display">
+        <span id="ammo-current">30</span><span class="ammo-sep">/</span><span id="ammo-reserve">99</span>
+      </div>
+      <button id="btn-shoot" class="round-btn shoot-btn" type="button">
+        <span class="round-btn-icon gun-icon">🔫</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="eliminated-overlay" class="eliminated-overlay hidden">
+    <h2>ELIMINATED</h2>
+    <p>Spectating the rest of the match…</p>
+  </div>
+</section>
+
+<!-- ===================== GAME OVER ===================== -->
+<section id="screen-gameover" class="screen">
+  <div class="panel">
+    <h1 id="gameover-title" class="title">VICTORY</h1>
+    <ol id="gameover-list" class="results-list"></ol>
+    <button id="btn-play-again" class="btn btn-primary" type="button">BACK TO LOBBY</button>
+  </div>
+</section>
+
+<!-- ===================== LEADERBOARD ===================== -->
+<section id="screen-leaderboard" class="screen">
+  <div class="panel">
+    <h1 class="title">🏆 LEADERBOARD</h1>
+    <ol id="leaderboard-list" class="results-list"></ol>
+    <button id="btn-close-leaderboard" class="btn btn-ghost" type="button">Back</button>
+  </div>
+</section>
+
+<script src="/lasertag/audio-sync.js"></script>
+<script type="module" src="/lasertag/game.js"></script>
+</body>
+</html>
